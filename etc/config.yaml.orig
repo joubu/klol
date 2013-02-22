@@ -1,0 +1,39 @@
+server:
+  host: localhost
+  login: koha
+  pwd: 'passwd'
+  container_path: /data/lxc/koha.tar.gz
+
+lxc:
+  containers:
+    path: /var/lib/lxc
+    config: |
+             lxc.network.type=veth
+             lxc.network.link=lxcbr0
+             lxc.network.flags=up
+             lxc.network.hwaddr=32:17:16:b2:8b:62
+             lxc.tty = 4
+             lxc.pts = 1024
+             lxc.utsname = koha
+             # uncomment the next line to run the container unconfined:
+             #lxc.aa_profile = unconfined
+             lxc.cgroup.devices.deny = a
+             # /dev/null and zero
+             lxc.cgroup.devices.allow = c 1:3 rwm
+             lxc.cgroup.devices.allow = c 1:5 rwm
+             # consoles
+             lxc.cgroup.devices.allow = c 5:1 rwm
+             lxc.cgroup.devices.allow = c 5:0 rwm
+             lxc.cgroup.devices.allow = c 4:0 rwm
+             lxc.cgroup.devices.allow = c 4:1 rwm
+             # /dev/{,u}random
+             lxc.cgroup.devices.allow = c 1:9 rwm
+             lxc.cgroup.devices.allow = c 1:8 rwm
+             lxc.cgroup.devices.allow = c 136:* rwm
+             lxc.cgroup.devices.allow = c 5:2 rwm
+             # rtc
+             lxc.cgroup.devices.allow = c 254:0 rwm
+             # mounts point
+             lxc.mount.entry=proc proc proc nodev,noexec,nosuid 0 0
+             lxc.mount.entry=sysfs sys sysfs defaults  0 0
+             lxc.rootfs = /dev/lxc/koha
