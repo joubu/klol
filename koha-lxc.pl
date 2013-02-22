@@ -33,11 +33,10 @@ my $action = $ARGV[0];
 
 my $is_launched_as_root = (getpwuid $>) eq 'root';
 
-check();
+check({action => $action});
 
 given ( $action ) {
     when ( /create/ ) {
-        pod2usage({message => "must run as root"}) unless $is_launched_as_root;
         eval {
             create({
                 name => $name,
@@ -50,7 +49,6 @@ given ( $action ) {
         }
     }
     when ( /clone/ ) {
-        pod2usage({message => "must run as root"}) unless $is_launched_as_root;
         clone({
             orig_name => $orig_name,
             name => $name,
@@ -69,6 +67,13 @@ sub clean {
 }
 
 sub check {
+    my ( $params ) = @_;
+    my $action = $params->{action};
+    pod2usage({message => "There is no action defined"}) unless $action;
+
+    pod2usage({message => "Must run as root"})
+        if $action ~~ [qw/create clone/]
+            and not $is_launched_as_root;
     my $return;
     $return = KLL::Lxc::check_config;
     if ( ref($return) ) {
@@ -89,9 +94,12 @@ sub pull_container {
     my $to       = $params->{to};
     my $lxc_path = $params->{lxc_path};
     my $verbose  = $params->{verbose};
-    warn "$user @ $host";
-    my $ssh = Net::OpenSSH->new($user . ":$pwd".'@' . $host.':22');
-    $ssh->scp_get({quiet => 0, verbose => 1, stderr_to_stdout => 1}, $from, $to) or die $ssh->error;
+
+    eval {
+        my $ssh = Net::OpenSSH->new($user . ":$pwd".'@' . $host.':22');
+        $ssh->scp_get({quiet => 1, recursive => 1, verbose => $verbose, stderr_to_stdout => 1}, $from, $to) or die $ssh->error;
+    };
+    die "I cannot pull the file $host:$from ($@)" if $@;
 
     my $lxc_rootfs_path = File::Spec->catfile(
         $lxc_path,
@@ -100,16 +108,16 @@ sub pull_container {
     my ( undef, undef, $pulled_filename ) = File::Spec->splitpath( $from );
     my $pulled_filepath = File::Spec->catfile( $to, $pulled_filename );
 
-    print "Trying to make directories $lxc_rootfs_path..." if $verbose;
+    print "- Making directories $lxc_rootfs_path..." if $verbose;
     mkpath $lxc_rootfs_path;
-    say "ok" if $verbose;
+    say "OK" if $verbose;
 
     if ( -d $pulled_filepath ) {
-        print "Trying to move the directory to the container..." if $verbose;
+        print "- Moving the directory to the container..." if $verbose;
         move( $pulled_filepath, $lxc_rootfs_path )
             or die "I cannot move $pulled_filepath to $lxc_rootfs_path ($!)";
     } else {
-        print "Trying to extract the archive to the container..." if $verbose;
+        print "- Extracting the archive to the container..." if $verbose;
         my $archive;
         eval {
             $archive = Archive::Extract->new( archive => $pulled_filepath );
@@ -118,6 +126,7 @@ sub pull_container {
         $archive->extract( to => $lxc_rootfs_path )
             or die "I cannot extract the archive ($pulled_filepath) to $lxc_rootfs_path ($archive->error)";
     }
+    say "OK" if $verbose;
 }
 
 sub build_config_file {
@@ -157,8 +166,11 @@ sub create {
     my $pwd  = $config->{server}{pwd};
     my $remote_path = $config->{server}{container_path};
 
-    die "This vm ($name) already exists!"
-        if KLL::Lxc::is_vm($name);
+#    die "This vm ($name) already exists!"
+#        if KLL::Lxc::is_vm($name);
+
+#    die "This logical volume (/dev/lxc/$name) already exists!"
+#        if KLL::LVM::is_lv(qq{/dev/lxc/$name});
 
     my $lxc_path = File::Spec->catfile(
         $config->{lxc}{containers}{path},
@@ -169,29 +181,55 @@ sub create {
         q{config}
     );
 
-    print "Trying to pull the file ${user} @ ${host} : $remote_path to $tmp_path..."
+#    print "Pulling the file ${user} @ ${host} : $remote_path to $tmp_path..."
+#        if $verbose;
+#    eval {
+#        pull_container( {
+#            user        => $user,
+#            host        => $host,
+#            pwd         => $pwd,
+#            from        => $remote_path,
+#            to          => $tmp_path,
+#            lxc_path    => $lxc_path,
+#            verbose     => $verbose,
+#        } );
+#    };
+#    die "Error getting the remote file: $@" if $@;
+#
+#    print "Generating the container config file $lxc_config_path..." if $verbose;
+#    eval {
+#        build_config_file({
+#            container_name  => $name,
+#            config_template => $config->{lxc}{containers}{config},
+#            lxc_config_path => $lxc_config_path,
+#        });
+#    };
+#    die "I cannot generate the config file ($@)" if $@;
+#    say "OK" if $verbose;
+
+    say  "Creating the Logical Volume /dev/lxc/$name..."
         if $verbose;
-    eval {
-        pull_container( {
-            user        => $user,
-            host        => $host,
-            pwd         => $pwd,
-            from        => $remote_path,
-            to          => $tmp_path,
-            lxc_path    => $lxc_path,
-            verbose     => $verbose,
-        } );
-    };
-    die "Error pulling the file using scp: $@" if $@;
-    say "ok" if $verbose;
-
-    print "Trying to generate the container config file $lxc_config_path..." if $verbose;
-    build_config_file({
-        container_name  => $name,
-        config_template => $config->{lxc}{containers}{config},
+    my $size = $config->{lvm}{size};
+    my $fstype = $config->{lvm}{fstype};
+    say "- Creating the logical volume $name(size=$size)..."
+        if $verbose;
+    KLL::LVM::lv_create({
+        name => $name,
+        size => $size,
     });
-    say "ok" if $verbose;
-
+    say "- Formatting the logical volume $name in $fstype..."
+        if $verbose;
+    KLL::LVM::lv_format({
+        name => $name,
+        fstype => $fstype,
+    });
+    say "- Mounting the volume in $config->{lxc}{containers}{path}/$name/rootfs..."
+        if $verbose;
+    KLL::LVM::lv_mount({
+        name => $name,
+        fstype => $fstype,
+        lxc_root => $config->{lxc}{containers}{path},
+    });
 
 }
 
@@ -204,7 +242,7 @@ sub generate_hwaddr {
     for ( 0 .. 5 ) {
         push @hwaddr, sprintf("%02X", int(rand(255)));
     }
-    return join '-', @hwaddr;
+    return join ':', @hwaddr;
 }
 
 
