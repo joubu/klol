@@ -1,4 +1,4 @@
-package KLL::Lxc;
+package Klol::Lxc;
 
 use Modern::Perl;
 use IPC::Cmd qw[run];
@@ -43,7 +43,6 @@ sub is_vm {
 }
 
 sub list_vms {
-
     my $cmd = q{/usr/bin/lxc-ls};
     my ( $success, $error, $full_buf, $stdout_buf, $stderr_buf ) =
         run( command => $cmd, verbose => 0 );
@@ -56,6 +55,15 @@ sub list_vms {
         push @vms, $line;
     }
     return @vms;
+}
+
+sub destroy {
+    my $vm_name = shift;
+    my $cmd = qq{/usr/bin/lxc-destroy -n $vm_name};
+    my ( $success, $error, $full_buf, $stdout_buf, $stderr_buf ) =
+        run( command => $cmd, verbose => 0 );
+    die "The lxc-destroy command fails with the following error: $error"
+        unless $success;
 }
 
 1;

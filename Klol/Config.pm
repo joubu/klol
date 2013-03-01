@@ -1,4 +1,4 @@
-package KLL::Config;
+package Klol::Config;
 
 use Modern::Perl;
 use YAML;
@@ -10,7 +10,8 @@ sub new {
 
     $filename //= dirname( abs_path( $0 ) ) . '/etc/config.yaml';
 
-    return YAML::LoadFile($filename);
+    my $self = YAML::LoadFile($filename);
+    bless( $self, $class );
 }
 
 1;

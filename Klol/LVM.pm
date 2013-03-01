@@ -1,4 +1,4 @@
-package KLL::LVM;
+package Klol::LVM;
 
 use Modern::Perl;
 use IPC::Cmd qw(can_run run);
@@ -107,6 +107,15 @@ sub lv_mount {
         run( command => $cmd, verbose => 0 );
     return $success if $success;
     die join ('\n', map { chomp; $_} @$stderr_buf);
+}
+
+sub lv_remove {
+    my $name = shift;
+    my $cmd = qq{/sbin/lv-remove /dev/lxc/$name};
+    my ( $success, $error, $full_buf, $stdout_buf, $stderr_buf ) =
+        run( command => $cmd, verbose => 0 );
+    die "The lxc-destroy command fails with the following error: $error"
+        unless $success;
 }
 
 1;
