@@ -3,6 +3,8 @@ package Klol::Lxc;
 use Klol::Run;
 
 use Modern::Perl;
+use File::Basename qw{ dirname };
+use File::Path qw{ make_path remove_tree };
 use Tie::File;
 
 
@@ -77,19 +79,26 @@ sub start {
         unless $r->success;
 }
 
+# From lxc-ip http://sourceforge.net/users/gleber/
 sub ip {
     my $vm_name = shift;
-    my $pid = qx{/usr/bin/lxc-info -n $vm_name -p | awk '{print \$2}'};
-    chomp $pid;
-    my $dst = qx{mktemp -u --tmpdir=/run/netns/};
-    chomp $dst;
-    my $name = qx{basename $dst};
+    my $r = Klol::Run->new(
+        qq{/usr/bin/lxc-info -n $vm_name -p | awk '{print \$2}'}
+    );
+    my $pid = $r->stdout;
+    $r = Klol::Run->new( q{mktemp -u --tmpdir=/run/netns/} );
+    my $dst = $r->stdout;
+    my $name = dirname $dst;
     chomp $name;
-    qx{mkdir -p /run/netns};
-    qx{ln -s /proc/$pid/ns/net $dst};
-    my $ip = qx{ip netns exec $name ip -4 addr show scope global | grep inet | awk  '{print \$2}' | cut -d '/' -f1};
-    chomp $ip;
-    qx{rm $dst};
+    make_path q{/run/netns}
+        or die "I cannot create /run/netns";
+    Klol::Run->new( qq{ln -s /proc/$pid/ns/net $dst} );
+    $r = Klol::Run->new(
+        qq{/bin/ip netns exec $name ip -4 addr show scope global | grep inet | awk  '{print \$2}' | cut -d '/' -f1}
+    );
+    my $ip = $r->stdout;
+    remove_tree $dst;
+
     return $ip;
 }
 

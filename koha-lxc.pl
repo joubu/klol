@@ -5,12 +5,15 @@ use Modern::Perl;
 use Klol::Config;
 use Klol::LVM;
 use Klol::Lxc;
+use Klol::Lxc::Config;
 use Klol::Lxc::Templates;
 use Getopt::Long;
 use Pod::Usage;
 use File::Spec;
 use File::Path;
 use File::Copy;
+use File::Slurp qw{ read_file };
+use File::Basename qw{ dirname };
 use Archive::Extract;
 #use Net::OpenSSH;
 use Data::Dumper;    # FIXME DELETEME
@@ -34,7 +37,7 @@ my $action = $ARGV[0];
 
 my $is_launched_as_root = ( getpwuid $> ) eq 'root';
 
-check( { action => $action } );
+check( { action => $action, $name => $name } );
 
 given ($action) {
     when (/create/) {
@@ -137,6 +140,8 @@ sub print_list {
 sub check {
     my ($params) = @_;
     my $action = $params->{action};
+    my $name = $params->{name};
+
     pod2usage( { message => "There is no action defined" } ) unless $action;
 
     return unless defined $action
@@ -145,8 +150,10 @@ sub check {
     pod2usage( { message => "Must run as root" } )
           unless $is_launched_as_root;
 
-    my $return;
-    $return = Klol::Lxc::check_config;
+    die "The container name cannot contain underscore (_), prefer dash (-)"
+        if $name =~ m/_/;
+
+    my $return = Klol::Lxc::check_config;
     if ( ref($return) ) {
         die "LXC configuration is wrong:\n" . join '\n', @$return;
     }
@@ -161,7 +168,6 @@ sub pull_file {
     my ($params) = @_;
     my $host     = $params->{host};
     my $user     = $params->{user};
-    my $pwd      = $params->{pwd};    # FIXME : not used with rsync, only ssh key
     my $identity_file = $params->{identity_file};
     my $from     = $params->{from};
     my $to       = $params->{to};
@@ -171,13 +177,12 @@ sub pull_file {
         $to = $config->{path}{tmp};
     }
     eval {
-
-#my $ssh = Net::OpenSSH->new($user . ":$pwd".'@' . $host.':22');
-#$ssh->scp_get({quiet => 1, recursive => 1, verbose => 0, stderr_to_stdout => 1}, $from, $to) or die $ssh->error;
         # Don't use scp here, it follows link, what we don't want!
-        my $cmd = q{rsync -avz -e "ssh} . ( $identity_file ? qq{ -i $identity_file} : q{} ) . qq{" $user\@$host:$from $to};
-        warn $cmd;
-        qx{$cmd};
+        Klol::Run->new(
+            q{rsync -avz -e "ssh}
+            . ( $identity_file ? qq{ -i $identity_file} : q{} )
+            . qq{" $user\@$host:$from $to}
+        );
     };
     die "I cannot pull the file $host:$from ($@)" if $@;
 
@@ -226,12 +231,15 @@ sub apply_template {
     my $config = Klol::Config->new;
     my $identity_file = $config->{lxc}{containers}{identity_file};
 
-    my $cmd = q{rsync -avz -e "ssh} . ( $identity_file ? qq{ -i $identity_file} : q{} ) . qq{" $bdd_filepath koha\@$ip:/tmp};
-    qx{$cmd};
-    my $bdd_filename = qx{basename $bdd_filepath};
-    chomp $bdd_filename;
-    say qq{ssh koha\@$ip -i $identity_file '/usr/bin/mysql < /tmp/$bdd_filename'};
-    qx{ssh koha\@$ip -i $identity_file '/usr/bin/mysql < /tmp/$bdd_filename'};
+    Klol::Run->new( 
+        q{rsync -avz -e "ssh}
+        . ( $identity_file ? qq{ -i $identity_file} : q{} )
+        . qq{" $bdd_filepath koha\@$ip:/tmp}
+    );
+    my $bdd_filename = dirname $bdd_filepath;
+    Klol::Run->new(
+        qq{ssh koha\@$ip -i $identity_file '/usr/bin/mysql < /tmp/$bdd_filename'}
+    );
 
 }
 
@@ -248,6 +256,16 @@ sub extract_archive {
       "I cannot extract the archive ($archive_path) to $to ($archive->error)";
 }
 
+sub pidof {
+    my $process_name = shift;
+    my $r = eval { Klol::Run->new(qq{/bin/pidof $process_name}) }
+        or die "I cannot get pid of $process_name, please check that it is running";
+    my $pid = $r->stdout;
+    die "Several process named $process_name are running, I cannot continue (pids=$pid)"
+        if $pid =~ /\D/;
+    return $pid;
+}
+
 sub create {
     my ($params) = @_;
     my $name     = $params->{name};
@@ -258,7 +276,6 @@ sub create {
 
     my $user        = $config->{server}{login};
     my $host        = $config->{server}{host};
-    my $pwd         = $config->{server}{pwd};
     my $identity_file = $config->{server}{identity_file};
     my $remote_path = $config->{server}{container_path};
 
@@ -355,7 +372,24 @@ sub create {
     die "I cannot generate the config file ($@)" if $@;
     say "OK" if $verbose;
 
-    # TODO Add an ip into /etc/dnsmasq.d/lxc_dhcp_reservations and restart dnsmasq or kill + launch the same command
+    print "- Adding this new host to the dnsmasq configuration file..."
+        if $verbose;
+    my $ip = eval {
+        Klol::Lxc::Config::add_host( {name => "poeut", hwaddr => "hwaddr"});
+    };
+    die "I cannot adding this host to dnsmasq ($@)" if $@;
+    say "OK" if $verbose;
+
+    print "- Reloading dnsmasq configuration..."
+        if $verbose;
+    my $pid = pidof( "dnsmasq" );
+    Klol::Run->new(qq{/bin/kill -1 $pid});
+    say "OK" if $verbose;
+
+    say " To complete, add the following line to your /etc/hosts file";
+    say "$ip catalogue.$name.local";
+    say "$ip pro.$name.local";
+
 }
 
 sub clone {

@@ -2,8 +2,8 @@ package Klol::Config;
 
 use Modern::Perl;
 use YAML;
-use File::Basename;
-use Cwd 'abs_path';
+use File::Basename qw{ dirname };
+use Cwd qw{ abs_path };
 
 sub new {
     my ( $class, $filename ) = @_;
