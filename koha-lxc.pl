@@ -11,9 +11,9 @@ use Getopt::Long;
 use Pod::Usage;
 use File::Spec;
 use File::Path;
-use File::Copy;
+use File::Copy qw{ move };
 use File::Slurp qw{ read_file };
-use File::Basename qw{ dirname };
+use File::Basename qw{ basename };
 use Archive::Extract;
 #use Net::OpenSSH;
 use Data::Dumper;    # FIXME DELETEME
@@ -51,7 +51,6 @@ given ($action) {
         };
         if ($@) {
             say "CALL CLEAN";
-            warn Data::Dumper::Dumper $@;
             my $error = $@;
             clean($name);
             die $error;
@@ -124,6 +123,8 @@ sub clean {
             if Klol::LVM::is_lv( {name => $name} );
     };
     die $@ if $@ and $verbose;
+
+    # FIXME remove in /etc/dnsmasq.d/...
 }
 
 sub print_list {
@@ -215,14 +216,20 @@ sub apply_template {
     unless ( Klol::Lxc::is_started( $name ) ) {
         say "The container is stopped, I will start it..." if $verbose;
         Klol::Lxc::start( $name );
-        sleep(10);
+        sleep(3);
     }
+
     my $ip = Klol::Lxc::ip( $name );
-    die "I cannot get the ip for $ip"
+    for my $i ( 1 .. 10 ) {
+        last if $ip;
+        sleep(1);
+        $ip = Klol::Lxc::ip( $name );
+    }
+    die "I cannot get the ip for $name"
         unless $ip;
 
     my $from = File::Spec->catfile( $template->{root_path}, $template->{filename} );
-    say "Pulling the sql file from $template->{login}\@$template->{host}:$from"
+    print "Pulling the sql file from $template->{login}\@$template->{host}:$from "
         if $verbose;
     my $bdd_filepath = pull_file(
         {
@@ -242,7 +249,7 @@ sub apply_template {
         . ( $identity_file ? qq{ -i $identity_file} : q{} )
         . qq{" $bdd_filepath koha\@$ip:/tmp}
     );
-    my $bdd_filename = dirname $bdd_filepath;
+    my $bdd_filename = basename $bdd_filepath;
     Klol::Run->new(
         qq{ssh koha\@$ip -i $identity_file '/usr/bin/mysql < /tmp/$bdd_filename'}
     );
@@ -366,22 +373,48 @@ sub create {
 
     print "- Generating the config file for the container into lxc_config_path..."
       if $verbose;
-    eval {
-        Klol::Lxc::build_config_file(
+    my $hwaddr = eval {
+        my $r = Klol::Lxc::build_config_file(
             {
                 container_name  => $name,
                 config_template => $config->{lxc}{containers}{config},
                 lxc_config_path => $lxc_config_path,
             }
         );
+        $r->{hwaddr};
     };
     die "I cannot generate the config file ($@)" if $@;
+    say "OK" if $verbose;
+
+    print "- Adding the eth0 interface as dhcp IPv4..."
+        if $verbose;
+    Klol::Lxc::Config::add_interfaces(
+        {
+            name => $name,
+            interface => q{eth0}
+        }
+    );
+    say "OK" if $verbose;
+
+    print "- Adding the public key to the authorized keys..."
+        if $verbose;
+    Klol::Lxc::Config::add_ssh_pubkey(
+        {
+            name => $name,
+            identity_file => $config->{lxc}{containers}{identity_file},
+        }
+    );
     say "OK" if $verbose;
 
     print "- Adding this new host to the dnsmasq configuration file..."
         if $verbose;
     my $ip = eval {
-        Klol::Lxc::Config::add_host( {name => "poeut", hwaddr => "hwaddr"});
+        Klol::Lxc::Config::add_host(
+            {
+                name => $name,
+                hwaddr => $hwaddr
+            }
+        );
     };
     die "I cannot adding this host to dnsmasq ($@)" if $@;
     say "OK" if $verbose;

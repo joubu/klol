@@ -4,6 +4,7 @@ use Modern::Perl;
 use File::Path qw{ make_path };
 use File::Basename qw{ dirname };
 use File::Slurp qw{ read_file write_file};
+use File::Spec;
 use Klol::Config;
 
 
@@ -57,11 +58,54 @@ sub add_host {
     }
 
     my $ip = get_next_ip( $content );
-    my $new_line = "\ndhcp-host=$hwaddr,$hostname,$ip";
+    my $new_line = "\n$hwaddr,$hostname,$ip";
 
     write_file( $dnsmasq_cf, {append => 1}, $new_line );
 
     return $ip;
+}
+
+# FIXME IPV4 specific
+sub add_interfaces {
+    my ( $params ) = @_;
+    my $name = $params->{name};
+    my $if = $params->{interface};
+    my $config = Klol::Config->new;
+    my $if_filepath = File::Spec->catfile(
+        $config->{lxc}{containers}{path},
+        $name,
+        q{rootfs},
+        q{etc}, q{network}, q{interfaces}
+    );
+    write_file( $if_filepath, {append => 1}, qq{auto $if} );
+    write_file( $if_filepath, {append => 1}, qq{iface $if inet dhcp} );
+}
+
+sub add_ssh_pubkey {
+    my ( $params ) = @_;
+    my $name = $params->{name};
+    my $identity_file = $params->{identity_file};
+    unless ( -f "$identity_file.pub" ) {
+        die "I don't know the public key for $identity_file";
+    }
+    my $config = Klol::Config->new;
+    my $ssh_filepath = File::Spec->catfile(
+        $config->{lxc}{containers}{path},
+        $name,
+        q{rootfs},
+        q{home}, q{koha}, q{.ssh}
+    );
+    my $ak_filepath = File::Spec->catfile( $ssh_filepath, q{authorized_keys} );
+    warn $ak_filepath;
+    unless ( -d $ssh_filepath ) {
+        make_path $ssh_filepath;
+        chown 1000, 1000, $ssh_filepath; # FIXME I suppose koha is 1000
+        chmod 0700, $ssh_filepath;
+    };
+    my $pubkey = read_file( "$identity_file.pub" );
+    write_file( $ak_filepath, {append => 1, perms => 600}, $pubkey );
+    chown 1000, 1000, $ak_filepath; # FIXME I suppose koha is 1000
+    chmod 0600, $ak_filepath;
 }
 
 1;

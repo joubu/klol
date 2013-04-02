@@ -3,7 +3,7 @@ package Klol::Lxc;
 use Klol::Run;
 
 use Modern::Perl;
-use File::Basename qw{ dirname };
+use File::Basename qw{ basename };
 use File::Path qw{ make_path remove_tree };
 use Tie::File;
 
@@ -83,10 +83,12 @@ sub ip {
     my $pid = $r->stdout;
     $r = Klol::Run->new( q{mktemp -u --tmpdir=/run/netns/} );
     my $dst = $r->stdout;
-    my $name = dirname $dst;
+    my $name = basename $dst;
     chomp $name;
-    make_path q{/run/netns}
-        or die "I cannot create /run/netns";
+    unless ( -d q{/run/netns} ) {
+        make_path q{/run/netns}
+            or die "I cannot create /run/netns";
+    }
     Klol::Run->new( qq{ln -s /proc/$pid/ns/net $dst} );
     $r = Klol::Run->new(
         qq{/bin/ip netns exec $name ip -4 addr show scope global | grep inet | awk  '{print \$2}' | cut -d '/' -f1}
@@ -112,25 +114,27 @@ sub build_config_file {
     my @config_lines;
     tie @config_lines, 'Tie::File', $lxc_config_path;
     @config_lines = split '\n', $config_template;
+    my $new_hwaddr = generate_hwaddr();
     for my $line (@config_lines) {
-
         if ( $line =~ m|lxc\.network\.hwaddr\s*=\s*(.*)$| ) {
             my $hwaddr     = $1;
-            my $new_hwaddr = generate_hwaddr();
             $line =~ s|(lxc\.network\.hwaddr\s*=\s*)$hwaddr$|$1$new_hwaddr|;
         }
         elsif ( $line =~ m|lxc.utsname\s*=\s*(.*)$| ) {
             my $old_name = $1;
             $line =~ s|(lxc.utsname\s*=\s*)$old_name|$1$container_name|;
         }
-        elsif ( $line =~ m|lxc\.rootfs\s*=\s*/dev/lxc/(.*)$| ) {
-            my $old_name = $1;
+        elsif ( $line =~ m|lxc\.rootfs\s*=\s*(.*)$| ) {
+            my $old_path = $1;
             $line =~
-              s|(lxc\.rootfs\s*=\s*/dev/lxc/)$old_name|$1$container_name|;
+              s|(lxc\.rootfs\s*=\s*)$old_path|$1/dev/lxc/$container_name|;
         }
     }
     untie @config_lines;
 
+    return {
+        hwaddr => $new_hwaddr
+    }
 }
 
 sub generate_hwaddr {
