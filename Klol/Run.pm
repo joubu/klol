@@ -3,12 +3,12 @@ package Klol::Run;
 use Modern::Perl;
 use IPC::Cmd qw[run];
 sub new {
-    my ( $class, $cmd ) = @_;
+    my ( $class, $cmd, $opts ) = @_;
+
+    my $dont_die = $opts->{no_die};
 
     my ( $success, $error, $full_buf, $stdout_buf, $stderr_buf ) =
         run( command => $cmd, verbose => 0 );
-    die "The $cmd command fails with the following error: $error"
-        unless $success;
 
     my $self = {
         success => $success,
@@ -19,6 +19,14 @@ sub new {
     };
 
     bless ( $self, $class );
+
+    unless ( $success or $dont_die) {
+        my $msg = qq{\nThe command "$cmd" fails with the following error: $error};
+        $msg .= qq{\nThe error message is: \n\t} . $self->stderr;
+            $self->stderr;
+        die $msg
+    }
+
     return $self;
 }
 

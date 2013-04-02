@@ -25,7 +25,8 @@ sub is_lv {
 sub list_lvs {
     my $lv_name = shift;
     my $cmd = qq{/sbin/lvdisplay -c /dev/lxc/$lv_name};
-    my $r = Klol::Run->new( $cmd );
+
+    my $r = Klol::Run->new( $cmd, { no_die => 1 } );
 
     my @full = $r->full;
     unless ( $r->success ) {
@@ -57,7 +58,7 @@ sub is_vg {
 sub list_vgs {
     my $vg_name = shift;
     my $cmd = qq{/sbin/vgdisplay -c $vg_name};
-    my $r = Klol::Run->new( $cmd );
+    my $r = eval{ Klol::Run->new( $cmd, { no_die => 1 } ) };
     my @full = $r->full;
     unless ( $r->success ) {
         return if @full and $full[0] =~ q{Volume group .* not found};
@@ -84,8 +85,7 @@ sub lv_create {
     return unless $name or $size;
     my $cmd = qq{/sbin/lvcreate -L $size -n $name lxc};
     my $r = Klol::Run->new( $cmd );
-    return $r->success if $r->success;
-    die $r->stderr;
+    return $r->success;
 }
 
 sub lv_format {
@@ -95,8 +95,7 @@ sub lv_format {
     return unless $name or $fstype;
     my $cmd = qq{/sbin/mkfs -t $fstype /dev/lxc/$name};
     my $r = Klol::Run->new( $cmd );
-    return $r->success if $r->success;
-    die $r->stderr;
+    return $r->success;
 }
 
 sub lv_mount {
@@ -107,8 +106,7 @@ sub lv_mount {
     return unless $name or $fstype;
     my $cmd = qq{/bin/mount -t $fstype /dev/lxc/$name $lxc_root/$name/rootfs};
     my $r = Klol::Run->new( $cmd );
-    return $r->success if $r->success;
-    die $r->stderr;
+    return $r->success;
 }
 
 sub lv_umount {
@@ -118,8 +116,7 @@ sub lv_umount {
     return unless $name;
     my $cmd = qq{/bin/umount /dev/lxc/$name};
     my $r = Klol::Run->new( $cmd );
-    return $r->success if $r->success;
-    die $r->stderr;
+    return $r->success;
 }
 
 sub lv_remove {
@@ -127,8 +124,7 @@ sub lv_remove {
     my $name = $params->{name};
     my $cmd = qq{/sbin/lvremove /dev/lxc/$name -f};
     my $r = Klol::Run->new( $cmd );
-    die "The lxc-destroy command fails with the following error: $r->error"
-        unless $r->success;
+    return $r->success;
 }
 
 1;

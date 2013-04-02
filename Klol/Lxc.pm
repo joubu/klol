@@ -51,8 +51,6 @@ sub is_vm {
 sub list_vms {
     my $cmd = q{/usr/bin/lxc-ls};
     my $r = Klol::Run->new( $cmd );
-    die "The lxc-ls command fails with the following error: $r->error"
-        unless $r->success;
 
     my @vms;
     for my $line ( $r->stdout ) {
@@ -66,8 +64,6 @@ sub is_started {
     my $vm_name = shift;
     my $cmd = qq{lxc-info -n $vm_name | grep state | awk '{print \$2}'};
     my $r = Klol::Run->new( $cmd );
-    die "The lxc-ls command fails with the following error: $r->error"
-        unless $r->success;
     return 1 if $r->stdout eq q{RUNNING};
 }
 
@@ -75,8 +71,7 @@ sub start {
     my $vm_name = shift;
     my $cmd = qq{/usr/bin/lxc-start -n $vm_name -d};
     my $r = Klol::Run->new( $cmd );
-    die "The lxc-start command fails with the following error: $r->error"
-        unless $r->success;
+    return $r->success;
 }
 
 # From lxc-ip http://sourceforge.net/users/gleber/
@@ -106,8 +101,7 @@ sub destroy {
     my $vm_name = shift;
     my $cmd = qq{/usr/bin/lxc-destroy -n $vm_name};
     my $r = Klol::Run->new( $cmd );
-    die "The lxc-destroy command fails with the following error: $r->error"
-        unless $r->success;
+    return $r->success;
 }
 
 sub build_config_file {
