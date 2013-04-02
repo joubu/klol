@@ -1,20 +1,22 @@
 server:
   host: localhost
   login: koha
-  pwd: 'passwd'
+  identity_file: /home/user/.ssh/id_rsa
   container_path: /data/lxc/koha.tar.gz
 
 lxc:
+  dnsmasq_config_file: /etc/dnsmasq.d/lxc_dhcp_reservations
   containers:
     path: /var/lib/lxc
+    identity_file: /home/user/.ssh/id_rsa_lxc
     config: |
              lxc.network.type=veth
              lxc.network.link=lxcbr0
              lxc.network.flags=up
-             lxc.network.hwaddr=32:17:16:b2:8b:62
+             lxc.network.hwaddr=HWADDR
              lxc.tty = 4
              lxc.pts = 1024
-             lxc.utsname = koha
+             lxc.utsname = NAME
              # uncomment the next line to run the container unconfined:
              #lxc.aa_profile = unconfined
              lxc.cgroup.devices.deny = a
@@ -36,4 +38,23 @@ lxc:
              # mounts point
              lxc.mount.entry=proc proc proc nodev,noexec,nosuid 0 0
              lxc.mount.entry=sysfs sys sysfs defaults  0 0
-             lxc.rootfs = /dev/lxc/koha
+             lxc.rootfs = ROOTFS
+
+template:
+  server:
+    host: host
+    login: login
+    root_path: /usr/local/backups
+    identify_file: /home/user/.ssh/id_rsa
+  availables:
+    template_name1:
+        filename: template1
+    template_name2:
+        filename: template2
+
+lvm:
+  size: 600M
+  fstype: ext4
+
+path:
+  tmp: /tmp

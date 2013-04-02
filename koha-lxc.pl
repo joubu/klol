@@ -438,6 +438,14 @@ Its allows to create a lxc container containing all Koha stuffs on LVM with a si
     server contains connection information to your templates server. root_path is the directory where templates are stored. If no ssh identity file is given, the password will be request.
     availables: list of all available templates. filename contains the filename of the database file (relative to server::root_path). searchengine is the search engine to enable on this container (could be Solr or Zebra).
 
+=head3 lvm
+
+    Size and fs type for logical volumes.
+
+=head3 path
+
+    tmp: absolute path to a temporary directory (change it if you encounter a space problem)
+
 =head1 Parameters
 
 =head2 Actions
