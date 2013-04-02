@@ -37,7 +37,7 @@ my $action = $ARGV[0];
 
 my $is_launched_as_root = ( getpwuid $> ) eq 'root';
 
-check( { action => $action, $name => $name } );
+check( { action => $action, name => $name } );
 
 given ($action) {
     when (/create/) {
@@ -120,20 +120,16 @@ sub clean {
 }
 
 sub print_list {
-    my $entity = shift // "";
-    given ( $entity ) {
-        when (/templates/) {
-            my $templates = Klol::Lxc::Templates->new;
-            say $templates;
-        }
-        when ("") {
-            my @containers = Klol::Lxc::list_vms;
-            say "List of LXC containers:";
-            say "\t$_" for @containers;
-        }
-        default {
-            say "I don't know what I have to list";
-        }
+    my $entity = shift // "all";
+    if ( $entity =~ /templates|all/ ) {
+        say "\nList of available templates:";
+        my $templates = Klol::Lxc::Templates->new;
+        say $templates;
+    }
+    if ( $entity =~ /lxc|containers|all/ ) {
+        my @containers = Klol::Lxc::list_vms;
+        say "\nList of LXC containers:";
+        say "\t$_" for @containers;
     }
 }
 
@@ -406,11 +402,87 @@ koha_lxc.pl - lxc tools for Koha
 
 =head1 SYNOPSIS
 
-perl koha_lxc.pl -h
+perl koha_lxc.pl [-h|--help|--man] action options [-v]
 
 =head1 DESCRIPTION
 
 This script provides some actions for managing Koha installations in a lxc container.
 
-=cut
+Its allows to create a lxc container containing all Koha stuffs on LVM with a simple command line.
 
+=head2 Config
+
+    The config file (etc/config.yaml) is where you configure all this tools box.
+    The following shortly describes the different entries:
+
+=head3 server
+
+    Contains connection information to the remove server where are the rootfs for the default container.
+    If no ssh identity file is given, the password will be request.
+
+=head3 lxc
+
+    Contains all information about your lxc configuration.
+
+    The dnmasq_config_file entry should be your... dnsmaq config file. It will be filled with lines formatted like:
+        hwaddr,container_name,ip
+    containers::path is the path where lxc manage yours containers (default is /var/lib/lxc).
+    containers::identity_file is the ssh public key used to connect to yours containers.
+    containers::config is the config file (/var/lib/lxc/NAME/config) used for each container.
+        lxc.network.hwaddr, lxc.utsname and lxc.rootfs are automatically replaced on creation.
+
+=head3 template
+
+    Contains all information about your templates.
+
+    server contains connection information to your templates server. root_path is the directory where templates are stored. If no ssh identity file is given, the password will be request.
+    availables: list of all available templates. filename contains the filename of the database file (relative to server::root_path). searchengine is the search engine to enable on this container (could be Solr or Zebra).
+
+=head1 Parameters
+
+=head2 Actions
+
+=head3 create
+
+    koha-lxc.pl create -n koha [-t template_name]
+
+    Create a new lxc container named koha with the template template_name.
+    If no template is given, the database will be the default one.
+
+=head3 clone
+
+    koha-lxc.pl clone -n new_koha -o koha [-s]
+
+    Same as the lxc command. Clone a container from another one.
+    Only make a snapshot if the -s flag is given.
+
+=head3 destroy
+
+    koha-lxc.pl destroy -n koha
+
+    Destructive action! It destroys your lxc container named koha and your logical volume named koha (in the lxc volume group).
+
+=head3 list
+
+    koha-lxc.pl list [what]
+
+    what can be "templates", "containers" or "all".
+    List all available templates and/or all lxc containers present on the system.
+
+=head3 apply
+
+    koha-lxc.pl apply -n koha -t template_name
+
+    Apply a template on a lxc container named koha
+
+=head2 Others options
+
+=head3 h|help|man
+
+    Display the help
+
+=head3 verbose|v
+
+    Verbose mode
+
+=cut
