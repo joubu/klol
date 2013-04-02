@@ -1,0 +1,7 @@
+etc/config.yaml
+*.swo
+*.swp
+*.swn
+*.new
+*~
+*.patch
