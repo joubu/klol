@@ -81,7 +81,11 @@ given ($action) {
         );
     }
     when (/destroy/) {
-        clean( $name );
+        $| = 1;
+        print "Are you sure you want to delete the container $name? (y/N)";
+        chomp( $_ = <STDIN> );
+        exit unless (/^y/i);
+        clean( $name, 1 );
     }
     when (/list/) {
         print_list( $ARGV[1] );
@@ -110,13 +114,16 @@ given ($action) {
 }
 
 sub clean {
-    my $name = shift;
-    eval {
+    my ($name, $verbose) = @_;
+    eval{
         Klol::LVM::lv_umount( {name => $name} );
+    };
+    eval {
         Klol::Lxc::destroy( $name );
         Klol::LVM::lv_remove( {name => $name} )
             if Klol::LVM::is_lv( {name => $name} );
     };
+    die $@ if $@ and $verbose;
 }
 
 sub print_list {
@@ -141,10 +148,13 @@ sub check {
     pod2usage( { message => "There is no action defined" } ) unless $action;
 
     return unless defined $action
-        and $action ~~ [qw/create clone/];
+        and $action ~~ [qw/create clone destroy apply/];
 
     pod2usage( { message => "Must run as root" } )
           unless $is_launched_as_root;
+
+    die "The container name is not defined"
+        unless $name;
 
     die "The container name cannot contain underscore (_), prefer dash (-)"
         if $name =~ m/_/;
@@ -227,7 +237,7 @@ sub apply_template {
     my $config = Klol::Config->new;
     my $identity_file = $config->{lxc}{containers}{identity_file};
 
-    Klol::Run->new( 
+    Klol::Run->new(
         q{rsync -avz -e "ssh}
         . ( $identity_file ? qq{ -i $identity_file} : q{} )
         . qq{" $bdd_filepath koha\@$ip:/tmp}
