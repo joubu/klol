@@ -26,6 +26,7 @@ sub pull {
     my $identity_file = $params->{identity_file};
     my $from     = $params->{from};
     my $to       = $params->{to};
+    my $verbose  = $params->{verbose};
 
     unless ( $to ) {
         my $config   = Klol::Config->new;
@@ -37,6 +38,8 @@ sub pull {
             q{rsync -avz -e "ssh}
             . ( $identity_file ? qq{ -i $identity_file} : q{} )
             . qq{" $user\@$host:$from $to}
+            . ( $verbose ? q{ --progress} : q{} )
+            , { verbose => $verbose }
         );
     };
     die "I cannot pull the file $host:$from ($@)" if $@;
@@ -45,6 +48,27 @@ sub pull {
     my $abs_path = File::Spec->catfile( $to, $pulled_filename );
     return $abs_path if -e $abs_path;
     die "The file is pulled but I cannot find it in $abs_path";
+}
+
+sub push {
+    my ($params) = @_;
+    my $host     = $params->{host};
+    my $user     = $params->{user};
+    my $identity_file = $params->{identity_file};
+    my $from     = $params->{from};
+    my $to       = $params->{to};
+
+    unless ( $to ) {
+        $to = '/tmp';
+    }
+    eval {
+        Klol::Run->new(
+            q{rsync -avz -e "ssh}
+            . ( $identity_file ? qq{ -i $identity_file} : q{} )
+            . qq{" $from $user\@$host:$to}
+        );
+    };
+    die "I cannot push the file $from ($@)" if $@;
 }
 
 1;

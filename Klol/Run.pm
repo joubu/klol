@@ -6,9 +6,10 @@ sub new {
     my ( $class, $cmd, $opts ) = @_;
 
     my $dont_die = $opts->{no_die};
+    my $verbose = $opts->{verbose} || 0;
 
     my ( $success, $error, $full_buf, $stdout_buf, $stderr_buf ) =
-        run( command => $cmd, verbose => 0 );
+        run( command => $cmd, verbose => $verbose );
 
     my $self = {
         success => $success,

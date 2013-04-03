@@ -217,6 +217,7 @@ sub apply_template {
             user => $template->{login},
             identity_file => $template->{identity_file},
             from => $from,
+            verbose => $verbose,
         }
     );
     say "OK" if $verbose;
@@ -224,11 +225,14 @@ sub apply_template {
     my $config = Klol::Config->new;
     my $identity_file = $config->{lxc}{containers}{identity_file};
 
-    Klol::Run->new(
-        q{rsync -avz -e "ssh}
-        . ( $identity_file ? qq{ -i $identity_file} : q{} )
-        . qq{" $bdd_filepath koha\@$ip:/tmp}
-        . ( $verbose ? q{ --progress} : q{} )
+    Klol::File::push(
+        {
+            from => $bdd_filepath,
+            host => $ip,
+            login => 'koha',
+            identity_file => $identity_file,
+            to => '/tmp',
+        }
     );
     my $bdd_filename = basename $bdd_filepath;
     Klol::Run->new(
@@ -260,11 +264,15 @@ sub create {
     my $identity_file = $config->{server}{identity_file};
     my $remote_path = $config->{server}{container_path};
 
-    die "This vm ($name) already exists!"
-      if Klol::Lxc::is_vm($name);
+    if ( Klol::Lxc::is_vm($name) ) {
+        say "This vm ($name) already exists!";
+        exit 1;
+    }
 
-    die "This logical volume (/dev/lxc/$name) already exists!"
-      if Klol::LVM::is_lv({name => qq{$name}});
+    if ( Klol::LVM::is_lv({name => qq{$name}}) ) {
+        say "This logical volume (/dev/lxc/$name) already exists!";
+        exit 1;
+    }
 
     my $lxc_path =
       File::Spec->catfile( $config->{lxc}{containers}{path}, $name );
@@ -319,6 +327,7 @@ sub create {
             identity_file => $identity_file,
             from => $remote_path,
             to   => $tmp_path,
+            verbose => $verbose,
         }
     );
     say "OK" if $verbose;
