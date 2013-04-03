@@ -3,6 +3,7 @@
 use Modern::Perl;
 
 use Klol::Config;
+use Klol::File;
 use Klol::LVM;
 use Klol::Lxc;
 use Klol::Lxc::Config;
@@ -14,8 +15,6 @@ use File::Path;
 use File::Copy qw{ move };
 use File::Slurp qw{ read_file };
 use File::Basename qw{ basename };
-use Archive::Extract;
-#use Net::OpenSSH;
 use Data::Dumper;    # FIXME DELETEME
 
 my ( $help, $man, $verbose, $name, $orig_name, $snapshot, $template_name );
@@ -171,33 +170,7 @@ sub check {
     $return = Klol::LVM::check_config;
 }
 
-sub pull_file {
-    my ($params) = @_;
-    my $host     = $params->{host};
-    my $user     = $params->{user};
-    my $identity_file = $params->{identity_file};
-    my $from     = $params->{from};
-    my $to       = $params->{to};
 
-    unless ( $to ) {
-        my $config   = Klol::Config->new;
-        $to = $config->{path}{tmp};
-    }
-    eval {
-        # Don't use scp here, it follows link, what we don't want!
-        Klol::Run->new(
-            q{rsync -avz -e "ssh}
-            . ( $identity_file ? qq{ -i $identity_file} : q{} )
-            . qq{" $user\@$host:$from $to}
-        );
-    };
-    die "I cannot pull the file $host:$from ($@)" if $@;
-
-    my ( undef, undef, $pulled_filename ) = File::Spec->splitpath($from);
-    my $abs_path = File::Spec->catfile( $to, $pulled_filename );
-    return $abs_path if -e $abs_path;
-    die "The file is pulled but I cannot find it in $abs_path";
-}
 
 sub apply_template {
     my ($params) = @_;
@@ -231,7 +204,7 @@ sub apply_template {
     my $from = File::Spec->catfile( $template->{root_path}, $template->{filename} );
     print "Pulling the sql file from $template->{login}\@$template->{host}:$from "
         if $verbose;
-    my $bdd_filepath = pull_file(
+    my $bdd_filepath = Klol::File::pull(
         {
             host => $template->{host},
             user => $template->{login},
@@ -254,19 +227,6 @@ sub apply_template {
         qq{ssh koha\@$ip -i $identity_file '/usr/bin/mysql < /tmp/$bdd_filename'}
     );
 
-}
-
-sub extract_archive {
-    my ($params)     = @_;
-    my $archive_path = $params->{archive_path};
-    my $to           = $params->{to};
-    my $archive;
-    eval { $archive = Archive::Extract->new( archive => $archive_path ); };
-    die "The pulled file is not a directory and not a valid archive, I don't know what I have to do! ($@)"
-      if $@;
-    $archive->extract( to => $to )
-      or die
-      "I cannot extract the archive ($archive_path) to $to ($archive->error)";
 }
 
 sub pidof {
@@ -343,7 +303,7 @@ sub create {
 
     print "- Pulling the file ${user} @ ${host} : $remote_path to $tmp_path...\n"
       if $verbose;
-    my $pulled_filepath = pull_file(
+    my $pulled_filepath = Klol::File::pull(
         {
             user => $user,
             host => $host,
@@ -362,7 +322,7 @@ sub create {
     else {
         print "- Extracting the archive to the container ($lxc_rootfs_path)..."
           if $verbose;
-        extract_archive(
+        Klol::File::extract_archive(
             {
                 archive_path => $pulled_filepath,
                 to           => $lxc_rootfs_path
@@ -425,9 +385,11 @@ sub create {
     Klol::Run->new(qq{/bin/kill -1 $pid});
     say "OK" if $verbose;
 
-    say " To complete, add the following line to your /etc/hosts file";
-    say "$ip catalogue.$name.local";
-    say "$ip pro.$name.local";
+    say "+=============================================================+";
+    say "| To complete, add the following line to your /etc/hosts file |";
+    say "| $ip catalogue.$name.local                                   |";
+    say "| $ip pro.$name.local                                         |";
+    say "+=============================================================+";
 
 }
 
