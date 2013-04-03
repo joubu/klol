@@ -113,16 +113,24 @@ given ($action) {
 
 sub clean {
     my ($name, $verbose) = @_;
+    my @err;
     eval{
         Klol::LVM::lv_umount( {name => $name} );
     };
+    push @err, $@ if $@;
     eval {
         Klol::Lxc::destroy( $name );
+    };
+    push @err, $@ if $@;
+    eval {
         Klol::LVM::lv_remove( {name => $name} )
             if Klol::LVM::is_lv( {name => $name} );
+    };
+    push @err, $@ if $@;
+    eval {
         Klol::Lxc::Config::remove_host( { name => $name } );
     };
-    die $@ if $@ and $verbose;
+    die @err if @err and $verbose;
 }
 
 sub print_list {
@@ -220,6 +228,7 @@ sub apply_template {
         q{rsync -avz -e "ssh}
         . ( $identity_file ? qq{ -i $identity_file} : q{} )
         . qq{" $bdd_filepath koha\@$ip:/tmp}
+        . ( $verbose ? q{ --progress} : q{} )
     );
     my $bdd_filename = basename $bdd_filepath;
     Klol::Run->new(
@@ -290,7 +299,7 @@ sub create {
     mkpath $lxc_rootfs_path;
     say "OK" if $verbose;
 
-    say "\t* Mounting the volume in $config->{lxc}{containers}{path}/$name/rootfs..."
+    print "\t* Mounting the volume in $config->{lxc}{containers}{path}/$name/rootfs..."
       if $verbose;
     Klol::LVM::lv_mount(
         {
@@ -299,6 +308,7 @@ sub create {
             lxc_root => $config->{lxc}{containers}{path},
         }
     );
+    say "OK" if $verbose;
 
     print "- Pulling the file ${user} @ ${host} : $remote_path to $tmp_path...\n"
       if $verbose;
@@ -315,8 +325,7 @@ sub create {
 
     if ( -d $pulled_filepath ) {
         print "- Moving the directory to the container..." if $verbose;
-        move( $pulled_filepath, $lxc_rootfs_path )
-          or die "I cannot move $pulled_filepath to $lxc_rootfs_path ($!)";
+        Klol::Run->new( qq{mv --no-clobber $pulled_filepath/\* $lxc_rootfs_path} );
     }
     else {
         print "- Extracting the archive to the container ($lxc_rootfs_path)..."
@@ -355,6 +364,15 @@ sub create {
     );
     say "OK" if $verbose;
 
+    print "- Updating the hostname file in the container..."
+        if $verbose;
+    Klol::Lxc::Config::update_hostname(
+        {
+            name => $name
+        }
+    );
+    say "OK" if $verbose;
+
     print "- Adding the public key to the authorized keys..."
         if $verbose;
     Klol::Lxc::Config::add_ssh_pubkey(
@@ -385,9 +403,9 @@ sub create {
     say "OK" if $verbose;
 
     say "+=============================================================+";
-    say "| To complete, add the following line to your /etc/hosts file |";
-    say "| $ip catalogue.$name.local                                   |";
-    say "| $ip pro.$name.local                                         |";
+    say " To complete, add the following line to your /etc/hosts file ";
+    say " $ip catalogue.$name.local                                   ";
+    say " $ip pro.$name.local                                         ";
     say "+=============================================================+";
 
 }
@@ -422,6 +440,9 @@ Its allows to create a lxc container containing all Koha stuffs on LVM with a si
 =head3 server
 
     Contains connection information to the remove server where are the rootfs for the default container.
+    The rootfs can be a directory or an archive (a lot of format supported).
+    This archive should be created e.g.
+        /var/lib/lxc/koha/rootfs $ tar cvf ../rootfs.tar .
     If no ssh identity file is given, the password will be request.
 
 =head3 lxc

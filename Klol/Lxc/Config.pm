@@ -5,6 +5,7 @@ use File::Path qw{ make_path };
 use File::Basename qw{ dirname };
 use File::Slurp qw{ read_file write_file};
 use File::Spec;
+use Tie::File;
 use Klol::Config;
 
 
@@ -90,7 +91,7 @@ sub remove_host {
                 ? $_
                 : ()
         } split "\n", $content
-    );
+    ) . "\n";
     write_file( $dnsmasq_cf, $content );
 }
 
@@ -106,8 +107,27 @@ sub add_interfaces {
         q{rootfs},
         q{etc}, q{network}, q{interfaces}
     );
-    write_file( $if_filepath, {append => 1}, qq{auto $if} );
-    write_file( $if_filepath, {append => 1}, qq{iface $if inet dhcp} );
+    my @if_lines;
+    tie @if_lines, 'Tie::File', $if_filepath;
+    unless ( grep { /eth0/ } @if_lines ) {
+        push @if_lines, qq{auto $if};
+        push @if_lines, qq{iface $if inet dhcp};
+    }
+    untie @if_lines;
+}
+
+# It should be useless, lxc.utsname should do the job but it is not the case
+sub update_hostname {
+    my ( $params ) = @_;
+    my $name = $params->{name};
+    my $config = Klol::Config->new;
+    my $hn_filepath = File::Spec->catfile(
+        $config->{lxc}{containers}{path},
+        $name,
+        q{rootfs},
+        q{etc}, q{hostname}
+    );
+    write_file( $hn_filepath, $name );
 }
 
 sub add_ssh_pubkey {
