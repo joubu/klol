@@ -65,6 +65,35 @@ sub add_host {
     return $ip;
 }
 
+sub remove_host {
+    my ( $params ) = @_;
+    my $hostname = $params->{name};
+
+    my $config = Klol::Config->new;
+    my $dnsmasq_cf = $config->{lxc}{dnsmasq_config_file};
+    die "No config file defined for dnsmasq in your yaml config file"
+        unless $dnsmasq_cf;
+
+    my $config_dir = dirname( $dnsmasq_cf );
+    return unless -d $config_dir;
+
+    my $content;
+    if ( -f $dnsmasq_cf ) {
+        $content = read_file( $dnsmasq_cf )
+            or die "I cannot read the dnsmasq config file ($dnsmasq_cf) ($!)";
+    }
+
+    $content = join (
+        "\n",
+        map {
+            $_ !~ m|^.*,$hostname,.*$|
+                ? $_
+                : ()
+        } split "\n", $content
+    );
+    write_file( $dnsmasq_cf, $content );
+}
+
 # FIXME IPV4 specific
 sub add_interfaces {
     my ( $params ) = @_;
@@ -96,7 +125,6 @@ sub add_ssh_pubkey {
         q{home}, q{koha}, q{.ssh}
     );
     my $ak_filepath = File::Spec->catfile( $ssh_filepath, q{authorized_keys} );
-    warn $ak_filepath;
     unless ( -d $ssh_filepath ) {
         make_path $ssh_filepath;
         chown 1000, 1000, $ssh_filepath; # FIXME I suppose koha is 1000

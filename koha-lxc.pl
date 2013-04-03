@@ -120,10 +120,9 @@ sub clean {
         Klol::Lxc::destroy( $name );
         Klol::LVM::lv_remove( {name => $name} )
             if Klol::LVM::is_lv( {name => $name} );
+        Klol::Lxc::Config::remove_host( { name => $name } );
     };
     die $@ if $@ and $verbose;
-
-    # FIXME remove in /etc/dnsmasq.d/...
 }
 
 sub print_list {
