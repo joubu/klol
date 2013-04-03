@@ -63,6 +63,9 @@ sub add_host {
 
     write_file( $dnsmasq_cf, {append => 1}, $new_line );
 
+    write_file( '/etc/hosts', {append => 1}, "\n$ip catalogue.$hostname.vm" );
+    write_file( '/etc/hosts', {append => 1}, "\n$ip pro.$hostname.vm" );
+
     return $ip;
 }
 
@@ -93,6 +96,15 @@ sub remove_host {
         } split "\n", $content
     ) . "\n";
     write_file( $dnsmasq_cf, $content );
+
+    my @hosts;
+    tie @hosts, 'Tie::File', '/etc/hosts';
+    @hosts = map {
+        $_ =~ m/\s(catalogue|pro)\.$hostname\.vm$/
+            ? "#$_"
+            : $_
+    } @hosts;
+    untie @hosts;
 }
 
 # FIXME IPV4 specific

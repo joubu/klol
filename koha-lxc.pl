@@ -410,13 +410,6 @@ sub create {
     my $pid = pidof( "dnsmasq" );
     Klol::Run->new(qq{/bin/kill -1 $pid});
     say "OK" if $verbose;
-
-    say "+=============================================================+";
-    say " To complete, add the following line to your /etc/hosts file ";
-    say " $ip catalogue.$name.local                                   ";
-    say " $ip pro.$name.local                                         ";
-    say "+=============================================================+";
-
 }
 
 sub clone {
