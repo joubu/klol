@@ -113,6 +113,8 @@ given ($action) {
 
 sub clean {
     my ($name, $verbose) = @_;
+    die "I cannot destroy $name, it is currently running"
+        if Klol::Lxc::is_started( $name );
     my @err;
     eval{
         Klol::LVM::lv_umount( {name => $name} );
