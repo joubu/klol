@@ -3,7 +3,7 @@ package Klol::File;
 use Modern::Perl;
 use Klol::Config;
 use Klol::Run;
-use Archive::Extract;
+use Archive::Tar;
 use File::Spec;
 
 sub extract_archive {
@@ -11,10 +11,13 @@ sub extract_archive {
     my $archive_path = $params->{archive_path};
     my $to           = $params->{to};
     my $archive;
-    eval { $archive = Archive::Extract->new( archive => $archive_path ); };
+    eval {
+        $archive = Archive::Tar->new( $archive_path );
+        $archive->setcwd( $to );
+    };
     die "The pulled file is not a directory and not a valid archive, I don't know what I have to do! ($@)"
       if $@;
-    $archive->extract( to => $to )
+    $archive->extract()
       or die
       "I cannot extract the archive ($archive_path) to $to ($archive->error)";
 }
