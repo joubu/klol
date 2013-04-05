@@ -88,6 +88,12 @@ given ($action) {
     when (/list/) {
         print_list( $ARGV[1] );
     }
+    when (/start/) {
+        start( { name => $name } )
+    }
+    when (/stop/) {
+        stop( { name => $name } )
+    }
     when (/apply/) {
         pod2usage(
             {
@@ -157,7 +163,7 @@ sub check {
     pod2usage( { message => "There is no action defined" } ) unless $action;
 
     return unless defined $action
-        and $action ~~ [qw/create clone destroy apply/];
+        and $action ~~ [qw/create clone destroy apply start stop/];
 
     pod2usage( { message => "Must run as root" } )
           unless $is_launched_as_root;
@@ -166,7 +172,12 @@ sub check {
         unless $name;
 
     die "The container name cannot contain underscore (_), prefer dash (-)"
-        if $name =~ m/_/;
+        if $name =~ m/_/
+            and $action ~~ [qw/create clone/];
+
+    die "This container does not exist"
+        if not Klol::Lxc::is_vm( $name )
+            and $action ~~ [qw/destroy apply start stop/];
 
     my $return = Klol::Lxc::check_config;
     if ( ref($return) ) {
@@ -178,8 +189,6 @@ sub check {
 
     $return = Klol::LVM::check_config;
 }
-
-
 
 sub apply_template {
     my ($params) = @_;
@@ -418,7 +427,17 @@ sub clone {
     die "clone is not implemented yet";
 }
 
+sub start {
+    my ( $params ) = @_;
+    my $name = $params->{name};
+    Klol::Lxc::start( $name );
+}
 
+sub stop {
+    my ( $params ) = @_;
+    my $name = $params->{name};
+    Klol::Lxc::stop( $name );
+}
 
 __END__
 

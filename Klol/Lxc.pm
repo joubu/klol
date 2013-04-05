@@ -74,6 +74,13 @@ sub start {
     return $r->success;
 }
 
+sub stop {
+    my $vm_name = shift;
+    my $cmd = qq{/usr/bin/lxc-stop -n $vm_name};
+    my $r = Klol::Run->new( $cmd );
+    return $r->success;
+}
+
 # From lxc-ip http://sourceforge.net/users/gleber/
 sub ip {
     my $vm_name = shift;
