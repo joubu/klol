@@ -442,9 +442,9 @@ Its allows to create a lxc container containing all Koha stuffs on LVM with a si
 =head3 server
 
     Contains connection information to the remove server where are the rootfs for the default container.
-    The rootfs can be a directory or an archive (a lot of format supported).
+    The rootfs can be a directory or an archive (only .tar.gz supported).
     This archive should be created e.g.
-        /var/lib/lxc/koha/rootfs $ tar cvf ../rootfs.tar .
+        /var/lib/lxc/koha/rootfs $ tar cxvf ../rootfs.tar.gz .
     If no ssh identity file is given, the password will be request.
 
 =head3 lxc
