@@ -11,7 +11,7 @@ koha-lxc.pl -h
 
 ## Bug tracker
 
-Have a bug or a feature request? [Please open a new issue](https://github.com/joubu/koha-lol/issues).
+Have a bug or a feature request? [Please open a new issue](https://github.com/joubu/klol/issues).
 
 
 ## Contributing
@@ -22,7 +22,7 @@ Thanks!
 
 ## Authors
 
-**[Jonathan Druart](jonathan.druart@biblibre.com)**
+**Jonathan Druart <jonathan.druart@biblibre.com>**
 
 ## Copyright and license
 

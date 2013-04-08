@@ -159,13 +159,108 @@ sub add_ssh_pubkey {
     my $ak_filepath = File::Spec->catfile( $ssh_filepath, q{authorized_keys} );
     unless ( -d $ssh_filepath ) {
         make_path $ssh_filepath;
-        chown 1000, 1000, $ssh_filepath; # FIXME I suppose koha is 1000
+        chown 1000, 1000, $ssh_filepath; # FIXME I assume that koha is 1000
         chmod 0700, $ssh_filepath;
     };
     my $pubkey = read_file( "$identity_file.pub" );
     write_file( $ak_filepath, {append => 1, perms => 600}, $pubkey );
-    chown 1000, 1000, $ak_filepath; # FIXME I suppose koha is 1000
+    chown 1000, 1000, $ak_filepath; # FIXME I assume that koha is 1000
     chmod 0600, $ak_filepath;
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+Klol::Lxc::Config - Configure some stuffs for Lxc containers
+
+=head1 DESCRIPTION
+
+While creating or destroying, some actions are required in order to make available with less work a container.
+
+=head1 ROUTINES
+
+=head2 get_next_ip
+
+    my $available_ip = Lxc::Config::get_next_ip;
+
+Return the next available IP in the dnsmasq configuration file.
+An error is raised if the file contained IPs from different networks.
+
+=head2 add_host
+
+    my $ip = Lxc::Config::add_host(
+        {
+            name => $name,
+            hwaddr => $hwaddr,
+        }
+    );
+
+Add the new container to the dnsmasq config file and to the /etc/hosts file.
+
+=head2 remove_host
+
+    Lxc::Config::remove_host(
+        {
+            name => $name,
+        }
+    );
+
+Remove the new container from the dnsmasq config file and from the /etc/hosts file.
+
+=head2 add_interfaces
+
+    Lxc::Config::add_interfaces(
+        {
+            name => $name,
+            interface => 'eth0',
+        }
+    );
+
+Add the given interface to the /etc/network/interface container file.
+If an existing line matches 'eth0', nothing is done.
+
+=head2 update_hostname
+
+    Lxc::Config::update_hostname(
+        {
+            name => $name,
+        }
+    );
+
+Update the /etc/hostname container file with the given hostname.
+
+=head2 add_ssh_pubkey
+
+    Lxc::Config::add_ssh_pubkey(
+        {
+            name => $name,
+            identity_file => '/path/to/.ssh/id_rsa',
+        }
+    );
+
+Add the "$identity_file.pub" file to the auhorized keys container file.
+This routine assume that koha have a uid=1000.
+
+=head1 AUTHORS
+
+Jonathan Druart <jonathan.druart@biblibre.com>
+
+=head1 LICENSE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.

@@ -18,21 +18,20 @@ sub check_config {
 sub is_lv {
     my $params = shift;
     my $lv_name = $params->{name};
-    my $lvs = list_lvs($lv_name);
+    my $lvs = list_lvs('lxc');
     return $lvs->{"/dev/lxc/$lv_name"};
 }
 
 sub list_lvs {
-    my $lv_name = shift;
-    my $cmd = qq{/sbin/lvdisplay -c /dev/lxc/$lv_name};
+    my $vg_name = shift || q{};
+    my $cmd = qq{/sbin/lvdisplay -c $vg_name};
 
     my $r = Klol::Run->new( $cmd, { no_die => 1 } );
 
     my @full = $r->full;
     unless ( $r->success ) {
         return if @full and $full[0] =~ q{One or more specified logical volume\(s\) not found};
-        return {} if @full and $full[0] =~ qq{Volume group "$lv_name" not found};
-        die "The lvdisplay command fails with the following error: $r->error";
+        die "The lvdisplay command fails with the following error:" . $r->error;
     }
     my %lvs;
     for my $line ( @full ) {
@@ -112,7 +111,6 @@ sub lv_mount {
 sub lv_umount {
     my $params = shift;
     my $name = $params->{name};
-    my $lxc_root = $params->{lxc_root} || q{/var/lib/lxc};
     return unless $name;
     my $cmd = qq{/bin/umount /dev/lxc/$name};
     my $r = Klol::Run->new( $cmd );
@@ -128,3 +126,126 @@ sub lv_remove {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+Klol::LVM - LVM tools box
+
+=head1 DESCRIPTION
+
+This module provides some routines for LVM
+
+=head1 ROUTINES
+
+=head2 check_config
+
+    LVM::check_config;
+
+Check the if LVM is willing to be used: LVM is installed and VG 'lxc' exists.
+
+=head2 is_lv
+
+    LVM::is_lv( { name => 'lv_name' } );
+
+Return logical volume information if exists.
+If not, return an undefined value.
+
+=head2 list_lvs
+
+    LVM::list_lvs( 'vg_name' );
+
+Return hashref representing logical volumes.
+If a volume group name is given, return LV of this VG.
+
+=head2 is_vg
+
+    LVM::is_vg( 'vg_name' );
+
+Return hashref representing the volume group with a name given in parameter, else undef.
+
+=head2 list_vgs
+
+    LVM::list_vgs( 'vg_name' );
+
+Return hashref representing volume groups.
+If a volume group name is given, return only the matching one.
+
+=head2 lv_create
+
+    LVM::lv_create(
+        {
+            name => 'lv_name',
+            size => '10G',
+        }
+    );
+
+Create a logical volume with a given name and size.
+The logical volume will be create in the volume group 'lxc'.
+
+=head2 lv_format
+
+    LVM::lv_format(
+        {
+            name => 'lv_name',
+            fstype => 'ext4',
+        }
+    );
+
+Format the logical volume with the given file system type.
+
+=head2 lv_mount
+
+    LVM::lv_mount(
+        {
+            name => 'lv_name',
+            fstype => 'ext4',
+            lxc_root => '/var/lib/lxc',
+        }
+    );
+
+Mount a logical volume on the rootfs's lxc container.
+
+=head2 lv_umount
+
+    LVM::lv_umount(
+        {
+            name => 'lv_name',
+        }
+    );
+
+Umount a logical volume.
+
+=head2 lv_remove
+
+    LVM::lv_remove(
+        {
+            name => 'lv_name',
+        }
+    );
+
+Remove a logical volume.
+/!\ Destructive routine!
+
+=head1 AUTHORS
+
+Jonathan Druart <jonathan.druart@biblibre.com>
+
+=head1 LICENSE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+

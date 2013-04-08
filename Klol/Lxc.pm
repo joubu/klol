@@ -154,3 +154,125 @@ sub generate_hwaddr {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+Klol::Lxc - Lxc tools box
+
+=head1 DESCRIPTION
+
+This module provides some routines for Lxc management.
+
+=head1 ROUTINES
+
+=head2 check_config
+
+    Lxc::check_config;
+
+Check the if Lxc is willing to be used: Lxc is installed, Lxc version > 0.8, lxc-checkconfig.
+Return 1 or arrayref containing errors.
+
+=head2 is_vm
+
+    Lxc::is_vm( 'container_name' );
+
+Return 1 if the container exists else 0.
+
+=head2 list_vms
+
+    Lxc::list_vms;
+
+Return a array containing a list of Lxc containers' name.
+
+=head2 is_started
+
+    Lxc::is_started( 'container_name' );
+
+Return 1 if the container is currently running.
+
+=head2 start
+
+    Lxc::start( 'container_name' );
+
+Start a container calling lxc-start.
+
+=head2 stop
+
+    Lxc::stop( 'container_name' );
+
+Stop a container calling lxc-stop.
+
+=head2 ip
+
+    Lxc::ip( 'container_name' );
+
+Return the LXC container's IP.
+
+=head2 destroy
+
+    Lxc::destroy( 'container_name' );
+
+Destroy a container. Return 1 if it's done.
+/!\ Destructive routine.
+
+=head2 build_config_file
+
+    Lxc::build_config_file((
+        {
+            container_name => 'container_name',
+            lxc_config_path => '/var/lib/lxc/container_name/config',
+            config_template => 'config contains',
+        }
+    );
+
+Build the specific config file for a container.
+This routine modifies 3 lines in the given config template:
+
+=over 4
+
+=item I<hwaddr>
+
+Generate a random hardware address.
+
+=item I<utsname>
+
+Set the container's name to the given name.
+
+=item I<rootfs>
+
+Specify the rootfs directory (will be in /dev/lxc).
+
+=back
+
+Return a hashref with a hwaddr key containing the generated hardware address.
+
+=head2 generate_hwaddr
+
+    Lxc::generate_hwaddr;
+
+Generate a valid hardware address.
+
+
+=head1 AUTHORS
+
+Jonathan Druart <jonathan.druart@biblibre.com>
+
+=head1 LICENSE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+

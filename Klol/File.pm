@@ -74,4 +74,84 @@ sub push {
     die "I cannot push the file $from ($@)" if $@;
 }
 
-1;
+1
+
+__END__
+
+=pod
+
+=head1 NAME
+
+Klol::File
+
+=head1 DESCRIPTION
+
+Provide some routines for a file
+
+=head1 ROUTINES
+
+=head2 extract_archive
+
+    my $config = File::extract_archive(
+        {
+            archive_path => '/path/to/the/archive.tar.gz',
+            to           => '/destination/path'
+        };
+    );
+
+Extract a tar.gz archive to a directory
+Return the directory where files have been extracted or raise an error.
+
+=head2 pull
+
+    my $pulled_filepath = File::pull(
+        {
+            host => 'host.example.org',
+            user => 'login',
+            identity_file => '/home/user/.ssh/id_rsa',
+            from => '/file/to/pull',
+            to   => '/local/destination/path',
+            verbose => 1
+        }
+    );
+
+Pull a file or a directory from a remote host using rsync over ssh.
+The identity_file is optional, if not given the ssh password will be requested.
+If the verbose flag is set, the progress will be displayed.
+
+Return the absolute file or directory path of the pulled stuff.
+
+=head2 push
+
+    File::push
+        {
+            host => 'host.example.org',
+            user => 'login',
+            identity_file => '/home/user/.ssh/id_rsa',
+            from => '/file/to/push',
+            to   => '/remote/destination/path',
+        }
+    );
+
+Push a file or a directory to a remote host using rsync over ssh.
+The identity_file is optional, if not given the ssh password will be requested.
+
+=head1 AUTHORS
+
+Jonathan Druart <jonathan.druart@biblibre.com>
+
+=head1 LICENSE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
