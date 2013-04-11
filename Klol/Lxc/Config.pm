@@ -7,11 +7,23 @@ use File::Slurp qw{ read_file write_file};
 use File::Spec;
 use Tie::File;
 use Klol::Config;
+use Klol::Process;
 
 
 # FIXME IPV4 specific
 sub get_next_ip {
     my $lines = shift;
+
+    unless ( $lines ) {
+        my $cmdline = Klol::Process::cmdline( 'dnsmasq', 'dhcp-hostsfile' );
+        if ( $cmdline =~ m|--dhcp-range([^,]+),| ) {
+            my $start_range = $1;
+            $lines = qq{hwaddr,host,$start_range};
+        } else {
+            die "I cannot get the dhcp range from the command line $cmdline";
+        }
+    }
+
     my ( $first_bit, $second_bit, $third_bit, @last_bits );
     for my $line ( split '\n', $lines ) {
         next unless $line;
@@ -31,6 +43,8 @@ First ip different is $ip"
             }
         }
     }
+    die "I cannot get a new valid IP from the config file. Maybe it just contains an empty line."
+        unless @last_bits;
     my @sorted = sort {$a <=> $b} @last_bits;
     my $last_bit = (pop @sorted) + 1;
     return qq{$first_bit.$second_bit.$third_bit.$last_bit};
@@ -49,17 +63,23 @@ sub add_host {
     my $config_dir = dirname( $dnsmasq_cf );
     unless ( -d $config_dir ) {
         make_path $config_dir
-            or die "I cannot create the config dir ($config_dir)for dnsmasq ($!)";
+            or die "I cannot create the config dir ($config_dir) for dnsmasq ($!)";
     }
 
     my $content;
     if ( -f $dnsmasq_cf ) {
-        $content = read_file( $dnsmasq_cf )
-            or die "I cannot read the dnsmasq config file ($dnsmasq_cf) ($!)";
+        $content = eval {
+            read_file( $dnsmasq_cf );
+        };
+        die "I cannot read the dnsmasq config file ($dnsmasq_cf) ($!)" if $@;
     }
 
+    my $sep = "\n";
+    unless ( $content ) {
+        $sep = q{};
+    }
     my $ip = get_next_ip( $content );
-    my $new_line = "\n$hwaddr,$hostname,$ip";
+    my $new_line = "$sep$hwaddr,$hostname,$ip";
 
     write_file( $dnsmasq_cf, {append => 1}, $new_line );
 

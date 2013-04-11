@@ -1,10 +1,12 @@
 package Klol::Lxc;
 
+use Klol::Config;
 use Klol::Run;
 
 use Modern::Perl;
 use File::Basename qw{ basename };
 use File::Path qw{ make_path remove_tree };
+use File::Slurp qw{ read_file };
 use Tie::File;
 
 
@@ -26,6 +28,21 @@ sub check_config {
         if ( $version < '0.8' ) {
             die "Your lxc version is too old";
         }
+    }
+
+    my $config = Klol::Config->new;
+    my $dnsmasq_cf = $config->{lxc}{dnsmasq_config_file};
+    die "No config file defined for dnsmasq in your yaml config file"
+        unless $dnsmasq_cf;
+    my $content;
+    if ( -f $dnsmasq_cf ) {
+        $content = eval {
+            read_file( $dnsmasq_cf );
+        };
+        die "I cannot read the dnsmasq config file ($dnsmasq_cf) ($!)" if $@;
+    }
+    if ( -f $dnsmasq_cf ) {
+        my $tmp_ip = Klol::Lxc::Config::get_next_ip( $content );
     }
 
     $cmd = q{/usr/bin/lxc-checkconfig};

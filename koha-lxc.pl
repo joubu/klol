@@ -8,6 +8,7 @@ use Klol::LVM;
 use Klol::Lxc;
 use Klol::Lxc::Config;
 use Klol::Lxc::Templates;
+use Klol::Process;
 use Getopt::Long;
 use Pod::Usage;
 use File::Spec;
@@ -252,16 +253,6 @@ sub apply_template {
 
 }
 
-sub pidof {
-    my $process_name = shift;
-    my $r = eval { Klol::Run->new(qq{/bin/pidof $process_name}) }
-        or die "I cannot get pid of $process_name, please check that it is running";
-    my $pid = $r->stdout;
-    die "Several process named $process_name are running, I cannot continue (pids=$pid)"
-        if $pid =~ /\D/;
-    return $pid;
-}
-
 sub create {
     my ($params) = @_;
     my $name     = $params->{name};
@@ -405,7 +396,7 @@ sub create {
 
     print "- Adding this new host to the dnsmasq configuration file..."
         if $verbose;
-    my $ip = eval {
+    eval {
         Klol::Lxc::Config::add_host(
             {
                 name => $name,
@@ -418,7 +409,7 @@ sub create {
 
     print "- Reloading dnsmasq configuration..."
         if $verbose;
-    my $pid = pidof( "dnsmasq" );
+    my $pid = Klol::Process::pidof( 'dnsmasq', 'dhcp-hostsfile' );
     Klol::Run->new(qq{/bin/kill -1 $pid});
     say "OK" if $verbose;
 }
