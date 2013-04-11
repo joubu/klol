@@ -107,15 +107,17 @@ sub remove_host {
             or die "I cannot read the dnsmasq config file ($dnsmasq_cf) ($!)";
     }
 
-    $content = join (
-        "\n",
-        map {
-            $_ !~ m|^.*,$hostname,.*$|
-                ? $_
-                : ()
-        } split "\n", $content
-    ) . "\n";
-    write_file( $dnsmasq_cf, $content );
+    if ( $content ) {
+        $content = join (
+            "\n",
+            map {
+                $_ !~ m|^.*,$hostname,.*$|
+                    ? $_
+                    : ()
+            } split "\n", $content
+        ) . "\n";
+        write_file( $dnsmasq_cf, $content );
+    }
 
     my @hosts;
     tie @hosts, 'Tie::File', '/etc/hosts';
