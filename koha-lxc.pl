@@ -178,7 +178,7 @@ sub check {
 
     die "This container does not exist"
         if not Klol::Lxc::is_vm( $name )
-            and $action ~~ [qw/destroy apply start stop/];
+            and $action ~~ [qw/apply start stop/];
 
     my $return = Klol::Lxc::check_config;
     if ( ref($return) ) {
