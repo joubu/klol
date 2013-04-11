@@ -40,9 +40,10 @@ sub check_config {
             read_file( $dnsmasq_cf );
         };
         die "I cannot read the dnsmasq config file ($dnsmasq_cf) ($!)" if $@;
+        chomp $content;
     }
-    if ( -f $dnsmasq_cf ) {
-        my $tmp_ip = Klol::Lxc::Config::get_next_ip( $content );
+    if ( $content ) {
+        Klol::Lxc::Config::get_next_ip( $content );
     }
 
     $cmd = q{/usr/bin/lxc-checkconfig};

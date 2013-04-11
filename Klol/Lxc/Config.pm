@@ -72,6 +72,7 @@ sub add_host {
             read_file( $dnsmasq_cf );
         };
         die "I cannot read the dnsmasq config file ($dnsmasq_cf) ($!)" if $@;
+        chomp $content;
     }
 
     my $sep = "\n";

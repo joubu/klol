@@ -404,7 +404,7 @@ sub create {
             }
         );
     };
-    die "I cannot adding this host to dnsmasq ($@)" if $@;
+    die "I cannot add this host to dnsmasq ($@)" if $@;
     say "OK" if $verbose;
 
     print "- Reloading dnsmasq configuration..."
