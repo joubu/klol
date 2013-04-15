@@ -7,6 +7,7 @@ use Klol::File;
 use Klol::LVM;
 use Klol::Lxc;
 use Klol::Config::Lxc;
+use Klol::Config::Ssh;
 use Klol::Lxc::Templates;
 use Klol::Process;
 
@@ -36,6 +37,10 @@ sub clean {
     push @err, $@ if $@;
     eval {
         Klol::Config::Lxc::remove_host( { name => $name } );
+    };
+    die @err if @err and $verbose;
+    eval {
+        Klol::Config::Ssh::remove_host( { name => $name } );
     };
     die @err if @err and $verbose;
 }
@@ -304,6 +309,18 @@ sub create {
         );
     };
     die "I cannot add this host to dnsmasq ($@)" if $@;
+    say "OK" if $verbose;
+
+    print "- Adding this new host to the .ssh/config file..."
+        if $verbose;
+    eval {
+        Klol::Config::Ssh::add_host(
+            {
+                name => $name,
+            }
+        );
+    };
+    die "I cannot add this host to .ssh/config ($@)" if $@;
     say "OK" if $verbose;
 
     print "- Reloading dnsmasq configuration..."
