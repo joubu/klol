@@ -1,4 +1,4 @@
-package Klol::Lxc::Config;
+package Klol::Config::Lxc;
 
 use Modern::Perl;
 use File::Path qw{ make_path };
@@ -199,7 +199,7 @@ __END__
 
 =head1 NAME
 
-Klol::Lxc::Config - Configure some stuffs for Lxc containers
+Klol::Config::Lxc - Configure some stuffs for Lxc containers
 
 =head1 DESCRIPTION
 
@@ -209,14 +209,14 @@ While creating or destroying, some actions are required in order to make availab
 
 =head2 get_next_ip
 
-    my $available_ip = Lxc::Config::get_next_ip;
+    my $available_ip = Config::Lxc::get_next_ip;
 
 Return the next available IP in the dnsmasq configuration file.
 An error is raised if the file contained IPs from different networks.
 
 =head2 add_host
 
-    my $ip = Lxc::Config::add_host(
+    my $ip = Config::Lxc::add_host(
         {
             name => $name,
             hwaddr => $hwaddr,
@@ -227,7 +227,7 @@ Add the new container to the dnsmasq config file and to the /etc/hosts file.
 
 =head2 remove_host
 
-    Lxc::Config::remove_host(
+    Config::Lxc::remove_host(
         {
             name => $name,
         }
@@ -237,7 +237,7 @@ Remove the new container from the dnsmasq config file and from the /etc/hosts fi
 
 =head2 add_interfaces
 
-    Lxc::Config::add_interfaces(
+    Config::Lxc::add_interfaces(
         {
             name => $name,
             interface => 'eth0',
@@ -249,7 +249,7 @@ If an existing line matches 'eth0', nothing is done.
 
 =head2 update_hostname
 
-    Lxc::Config::update_hostname(
+    Config::Lxc::update_hostname(
         {
             name => $name,
         }
@@ -259,7 +259,7 @@ Update the /etc/hostname container file with the given hostname.
 
 =head2 add_ssh_pubkey
 
-    Lxc::Config::add_ssh_pubkey(
+    Config::Lxc::add_ssh_pubkey(
         {
             name => $name,
             identity_file => '/path/to/.ssh/id_rsa',

@@ -43,7 +43,7 @@ sub check_config {
         chomp $content;
     }
     if ( $content ) {
-        Klol::Lxc::Config::get_next_ip( $content );
+        Klol::Config::Lxc::get_next_ip( $content );
     }
 
     $cmd = q{/usr/bin/lxc-checkconfig};

@@ -6,7 +6,7 @@ use Klol::Config;
 use Klol::File;
 use Klol::LVM;
 use Klol::Lxc;
-use Klol::Lxc::Config;
+use Klol::Config::Lxc;
 use Klol::Lxc::Templates;
 use Klol::Process;
 
@@ -35,7 +35,7 @@ sub clean {
     };
     push @err, $@ if $@;
     eval {
-        Klol::Lxc::Config::remove_host( { name => $name } );
+        Klol::Config::Lxc::remove_host( { name => $name } );
     };
     die @err if @err and $verbose;
 }
@@ -266,7 +266,7 @@ sub create {
 
     print "- Adding the eth0 interface as dhcp IPv4..."
         if $verbose;
-    Klol::Lxc::Config::add_interfaces(
+    Klol::Config::Lxc::add_interfaces(
         {
             name => $name,
             interface => q{eth0}
@@ -276,7 +276,7 @@ sub create {
 
     print "- Updating the hostname file in the container..."
         if $verbose;
-    Klol::Lxc::Config::update_hostname(
+    Klol::Config::Lxc::update_hostname(
         {
             name => $name
         }
@@ -285,7 +285,7 @@ sub create {
 
     print "- Adding the public key to the authorized keys..."
         if $verbose;
-    Klol::Lxc::Config::add_ssh_pubkey(
+    Klol::Config::Lxc::add_ssh_pubkey(
         {
             name => $name,
             identity_file => $config->{lxc}{containers}{identity_file},
@@ -296,7 +296,7 @@ sub create {
     print "- Adding this new host to the dnsmasq configuration file..."
         if $verbose;
     eval {
-        Klol::Lxc::Config::add_host(
+        Klol::Config::Lxc::add_host(
             {
                 name => $name,
                 hwaddr => $hwaddr
