@@ -9,6 +9,7 @@ lxc:
   containers:
     path: /var/lib/lxc
     identity_file: /home/user/.ssh/id_rsa_lxc
+    user: username
     config: |
              lxc.network.type=veth
              lxc.network.link=lxcbr0
